@@ -1,5 +1,6 @@
 # Redis Web Chat (Spring Boot)
-This is a simple web-based chat application built using **Spring Boot** and **Redis**. It demonstrates real-time messaging via WebSocket and uses Redis for message brokering and key-value storage.
+This is a simple web-based chat application built using **Spring Boot** and **Redis**.  
+It demonstrates real-time messaging via WebSocket and uses Redis for message brokering and key-value storage.
 
 ## 🔧 Tech Stack
 
