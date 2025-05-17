@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redis Web Dashboard</title>
+    <meta charset="UTF-8" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: sans-serif;
+        }
+        #container {
+            display: flex;
+            height: 100%;
+        }
+        #left {
+            width: 60%;
+            padding: 1em;
+            border-right: 3px solid #ccc;
+            display: flex;
+            flex-direction: column;
+        }
+        #resizer {
+            width: 6px;
+            cursor: ew-resize;
+            background: #ccc;
+        }
+        #right {
+            flex-grow: 1;
+            padding: 1em;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+        #chat {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 1em;
+            overflow-y: auto;
+            margin-bottom: 1em;
+        }
+        input[type="text"] {
+            padding: 0.5em;
+        }
+        #username, #message {
+            width: 60%;
+        }
+        .card-header {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div id="left">
+        <div class="mb-3">
+            <strong>Username:</strong>
+            <input type="text" id="username" value="anonymous" />
+            <button onclick="send()">Send</button>
+            <button id="autoButton" onclick="toggleAuto()">Random Message</button>
+        </div>
+        <div id="chat"></div>
+        <input type="text" id="message" placeholder="Type your message..." onkeydown="handleKey(event)" />
+    </div>
+
+    <div id="resizer"></div>
+
+    <div id="right">
+        <div class="row g-3 mb-3" id="infoCards"></div>
+        <div class="card">
+            <div class="card-header"><i class="bi bi-info-circle"></i> All Redis Info</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm m-0">
+                        <thead class="table-light">
+                            <tr><th>Key</th><th>Value</th></tr>
+                        </thead>
+                        <tbody id="infoAll"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let ws = new WebSocket("ws://" + window.location.host + "/chat");
+let chatBox = document.getElementById("chat");
+let autoMode = false;
+let intervalId = null;
+let autoButton = document.getElementById("autoButton");
+
+ws.onmessage = function(event) {
+    let msg = document.createElement("div");
+    msg.textContent = event.data;
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+};
+
+function send() {
+    let input = document.getElementById("message");
+    let user = document.getElementById("username").value || "anonymous";
+    if (input.value.trim() !== "") {
+        ws.send(user + ": " + input.value);
+        input.value = "";
+    }
+}
+
+function handleKey(event) {
+    if (event.key === "Enter") {
+        send();
+    }
+}
+
+function toggleAuto() {
+    let user = document.getElementById("username").value || "anonymous";
+    if (!autoMode) {
+        autoMode = true;
+        autoButton.textContent = "Stop Random Message";
+        intervalId = setInterval(() => {
+            const randomMsg = "AUTO_" + Math.random().toString(36).substring(2, 8);
+            ws.send(user + ": " + randomMsg);
+        }, 100);
+    } else {
+        autoMode = false;
+        autoButton.textContent = "Random Message";
+        clearInterval(intervalId);
+    }
+}
+
+function updateRedisInfo() {
+    fetch('/info')
+        .then(res => res.json())
+        .then(data => {
+            const cards = document.getElementById("infoCards");
+            cards.innerHTML = "";
+
+            const server = {
+                "Redis Version": data.redis_version,
+                "OS": data.os,
+                "Process ID": data.process_id
+            };
+            const memory = {
+                "Used Memory": data.used_memory_human,
+                "Peak Memory": data.used_memory_peak_human,
+                "Lua Memory": data.used_memory_lua_human
+            };
+            const stats = {
+                "Connected Clients": data.connected_clients,
+                "Total Connections": data.total_connections_received,
+                "Total Commands": data.total_commands_processed
+            };
+
+            renderCard("Server", server);
+            renderCard("Memory", memory);
+            renderCard("Stats", stats);
+
+            // Full info
+            const tbody = document.getElementById("infoAll");
+            tbody.innerHTML = "";
+            for (let k in data) {
+                tbody.innerHTML += `<tr><td>${k}</td><td>${data[k]}</td></tr>`;
+            }
+        });
+}
+
+function renderCard(title, obj) {
+    const div = document.createElement("div");
+    div.className = "col-md-4";
+    div.innerHTML = `
+    <div class="card h-100">
+        <div class="card-header">${title}</div>
+        <div class="card-body">
+            ${Object.entries(obj).map(([k,v]) => `
+                <div class="mb-2">
+                    <div class="text-muted">${k}</div>
+                    <div class="text-success fw-semibold">${v}</div>
+                </div>
+            `).join("")}
+        </div>
+    </div>`;
+    document.getElementById("infoCards").appendChild(div);
+}
+
+setInterval(updateRedisInfo, 1000);
+updateRedisInfo();
+
+const resizer = document.getElementById("resizer");
+const leftPanel = document.getElementById("left");
+resizer.addEventListener("mousedown", (e) => {
+    document.addEventListener("mousemove", resize);
+    document.addEventListener("mouseup", stopResize);
+});
+function resize(e) {
+    const newWidth = e.clientX;
+    if (newWidth > 200 && newWidth < window.innerWidth - 200) {
+        leftPanel.style.width = `${newWidth}px`;
+    }
+}
+function stopResize() {
+    document.removeEventListener("mousemove", resize);
+    document.removeEventListener("mouseup", stopResize);
+}
+</script>
+<script>
+function loadKey() {
+    const key = document.getElementById("keyInput").value;
+    if (!key) return;
+    fetch('/kv/' + encodeURIComponent(key))
+        .then(res => res.ok ? res.text() : Promise.reject("Not found"))
+        .then(val => {
+            document.getElementById("valueInput").value = val;
+            document.getElementById("keyMsg").textContent = "Loaded key: " + key;
+        })
+        .catch(err => {
+            document.getElementById("valueInput").value = "";
+            document.getElementById("keyMsg").textContent = "Error: " + err;
+        });
+}
+
+function saveKey() {
+    const key = document.getElementById("keyInput").value;
+    const val = document.getElementById("valueInput").value;
+    if (!key) return;
+    fetch('/kv/' + encodeURIComponent(key), {
+        method: 'PUT',
+        headers: { "Content-Type": "text/plain" },
+        body: val
+    }).then(res => {
+        document.getElementById("keyMsg").textContent = "Saved key: " + key;
+    });
+}
+
+function deleteKey() {
+    const key = document.getElementById("keyInput").value;
+    if (!key) return;
+    fetch('/kv/' + encodeURIComponent(key), {
+        method: 'DELETE'
+    }).then(res => {
+        document.getElementById("valueInput").value = "";
+        document.getElementById("keyMsg").textContent = "Deleted key: " + key;
+    });
+}
+</script>
+</body>
+</html>

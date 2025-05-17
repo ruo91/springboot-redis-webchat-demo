@@ -1,0 +1,7 @@
+spring:
+  data:
+    redis:
+      host: redis.local
+      port: 6379
+server:
+  port: 8080
