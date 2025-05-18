@@ -3,5 +3,14 @@ spring:
     redis:
       host: redis.local
       port: 6379
+    #redis:
+    #  sentinel:
+    #    master: mymaster
+    #    nodes:
+    #      - 192.168.10.10:26379
+    #      - 192.168.10.11:26379
+    #      - 192.168.10.12:26379
+    #  password: your-redis-password
+    #  timeout: 300
 server:
   port: 8080
