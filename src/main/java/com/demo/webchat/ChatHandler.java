@@ -31,13 +31,21 @@ public class ChatHandler extends TextWebSocketHandler {
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        String payload = "[" + LocalDateTime.now() + "] " + message.getPayload();
-        redisTemplate.opsForList().rightPush("chat:messages", payload);
-        logger.info("Message received: {}", payload);
+        long startTime = System.nanoTime();
+
+        String rawPayload = message.getPayload();
+        String timestampedPayload = "[" + LocalDateTime.now() + "] " + rawPayload;
+        redisTemplate.opsForList().rightPush("chat:messages", timestampedPayload);
+
+        long endTime = System.nanoTime();
+        long elapsedMillis = (endTime - startTime) / 1_000_000;
+
+        String payloadWithTime = timestampedPayload + " (Redis processing time: " + elapsedMillis + " ms)";
+        logger.info("Message received and processed in {} ms: {}", elapsedMillis, rawPayload);
 
         for (WebSocketSession s : sessions.values()) {
             if (s.isOpen()) {
-                s.sendMessage(new TextMessage(payload));
+                s.sendMessage(new TextMessage(payloadWithTime));
             }
         }
     }
