@@ -35,13 +35,17 @@ public class ChatHandler extends TextWebSocketHandler {
 
         String rawPayload = message.getPayload();
         String timestampedPayload = "[" + LocalDateTime.now() + "] " + rawPayload;
+
         redisTemplate.opsForList().rightPush("chat:messages", timestampedPayload);
 
         long endTime = System.nanoTime();
-        long elapsedMillis = (endTime - startTime) / 1_000_000;
+        long elapsedNano = endTime - startTime;
+        double elapsedMillis = elapsedNano / 1_000_000.0;
+        long elapsedMicros = elapsedNano / 1_000;
 
-        String payloadWithTime = timestampedPayload + " (Redis processing time: " + elapsedMillis + " ms)";
-        logger.info("Message received and processed in {} ms: {}", elapsedMillis, rawPayload);
+        String formattedLatency = String.format("%.3f ms (%d us)", elapsedMillis, elapsedMicros);
+        String payloadWithTime = timestampedPayload + " (Redis processing time: " + formattedLatency + ")";
+        logger.info("Message received and processed in {}: {}", formattedLatency, rawPayload);
 
         for (WebSocketSession s : sessions.values()) {
             if (s.isOpen()) {
