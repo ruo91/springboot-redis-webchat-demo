@@ -4,7 +4,7 @@ It demonstrates real-time messaging via WebSocket and uses Redis for message bro
 
 ## 🔧 Tech Stack
 
-- Java 17+
+- Java 21+
 - Spring Boot
 - Redis
 - WebSocket (custom handler, no STOMP)
@@ -16,7 +16,7 @@ It demonstrates real-time messaging via WebSocket and uses Redis for message bro
 
 ## 📦 Requirements
 
-- Java 17 or higher
+- Java 21 or higher
 - Redis (local or remote)
 - Visual Studio Code  
   Recommended Extension: [Java Extension Pack](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
