@@ -84,7 +84,7 @@
 </div>
 
 <script>
-let ws = new WebSocket("ws://" + window.location.host + "/chat");
+let ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/chat");
 let chatBox = document.getElementById("chat");
 let autoMode = false;
 let intervalId = null;
